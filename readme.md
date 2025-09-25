@@ -9,16 +9,9 @@
 ## 项目结构
 
 本项目采用三阶段工作流，确保数据质量与流程清晰：
-formula-dataset-pipeline/
-├── origin_data/
-│ ├── check.py
-│ └── convert.py
-├── transfer_data/
-│ ├── generate_formula_images.py
-│ └── compare.py
-└── worked_data/
-├── enhance_image.py
-└── modify_image_paths.py
+## 项目结构
+
+本项目采用三阶段工作流，确保数据质量与流程清晰：
 
 
 - `origin_data/`：原始数据输入区  
