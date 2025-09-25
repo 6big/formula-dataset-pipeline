@@ -1,6 +1,6 @@
 # Formula Dataset Pipeline
 
-一个轻量级、端到端的合成数学公式数据集生成流水线，专为**构建公式识别数据集（Mathematical Expression Recognition / Math OCR）**任务设计。
+一个轻量级、端到端的合成数学公式数据集生成流水线，专为构建公式识别数据集（Mathematical Expression Recognition / Math OCR）任务设计。
 
 > ✨ **无需安装系统级 LaTeX！仅依赖 `matplotlib` 即可渲染公式图像，开箱即用。**  
 > 已在 **Python 3.10（Anaconda 3.10.18）** 环境下验证通过。
@@ -14,19 +14,18 @@
 本项目采用三阶段工作流，确保数据质量与流程清晰：
 
 
-- `origin_data/`：原始数据输入区  
-  - `check.py`：检查原始数据列名与内容合法性  
-  - `convert.py`：转换为标准 `jsonl` 标注 + `images` 文件夹  
-
-- `transfer_data/`：中转处理区（含人工核验）  
-  - `generate_formula_images.py`：根据 LaTeX 生成透明背景公式图  
-  - `compare.py`：人工筛选后，清理无效样本，确保标注与图像一致  
-
-- `worked_data/`：最终成品区  
-  - `enhance_image.py`：对图像做 ±5° 随机旋转（保持透明背景）  
-  - `modify_image_paths.py`：修正标注中的图像路径，确保与文件位置匹配  
-
----
+```text
+formula-dataset-pipeline/
+├── origin_data/
+│   ├── check.py          # 检查原始数据列名与内容
+│   └── convert.py        # 转换为 jsonl + images 文件夹
+├── transfer_data/
+│   ├── generate_formula_images.py   # 生成透明背景公式图
+│   └── compare.py        # 人工核验后清理无效样本
+└── worked_data/
+    ├── enhance_image.py  # ±5° 随机旋转增强
+    └── modify_image_paths.py  # 修正图像路径  
+```
 
 ## 输出成果
 
@@ -63,3 +62,23 @@
 - `\int_0^\infty e^{-x^2} dx`  
 
 > 如果原始数据包含不支持的语法，`generate_formula_images.py` 会报错。建议在 `convert.py` 阶段做预处理或过滤。
+
+## 📚 引用本项目
+
+如果你在研究、论文或产品中使用了本项目，欢迎引用！这将帮助更多人发现和受益于本工作。
+
+### BibTeX 引用（推荐）
+
+```bibtex
+@software{6big_formula_dataset_pipeline_2025,
+  author = {6big},
+  title = {{Formula Dataset Pipeline}},
+  url = {https://github.com/6big/formula-dataset-pipeline},
+  version = {1.0},
+  date = {2025-09-24}
+}
+```
+### 文本引用格式
+```text
+6big. (2025). Formula Dataset Pipeline [Computer software]. GitHub. https://github.com/6big/formula-dataset-pipeline
+```
