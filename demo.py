@@ -47,7 +47,7 @@ def create_app():
                 with gr.Column(scale=2):
                     check_output = gr.Textbox(
                         label="检查结果",
-                        lines=10,
+                        lines=11,
                         interactive=False
                     )
 
@@ -88,7 +88,7 @@ def create_app():
                 with gr.Column(scale=2):
                     convert_output = gr.Textbox(
                         label="转换结果",
-                        lines=10,
+                        lines=25,
                         interactive=False
                     )
             
@@ -119,7 +119,7 @@ def create_app():
                         placeholder="请输入JSONL文件路径"
                     )
                     user_prompt = gr.Textbox(
-                        label="用户提示语",
+                        label="用户提示词",
                         value="请根据以下 LaTeX 公式生成相应的数学表达式图片。",
                         lines=3
                     )
@@ -150,7 +150,7 @@ def create_app():
                 with gr.Column(scale=2):
                     generate_output = gr.Textbox(
                         label="生成结果",
-                        lines=15,
+                        lines=45,
                         interactive=False
                     )
             
@@ -219,7 +219,7 @@ def create_app():
                 with gr.Column(scale=2):
                     compare_output = gr.Textbox(
                         label="核验结果",
-                        lines=25,
+                        lines=26,
                         interactive=False,
                         placeholder="请在图片文件夹中进行人工核验，删除不合格的图片后再点击核验按钮。"
                     )
@@ -297,7 +297,7 @@ def create_app():
                 with gr.Column(scale=2):
                     enhance_output = gr.Textbox(
                         label="增强结果",
-                        lines=15,
+                        lines=37,
                         interactive=False
                     )
             
@@ -389,7 +389,6 @@ def create_app():
                         validate_paths = gr.Checkbox(
                             label="验证新路径是否存在",
                             value=False,
-                            placeholder="默认新的路径前缀与图片目录一致时无需验证"
                         )
                     
                     modify_btn = gr.Button("✏️ 修改路径")
@@ -397,8 +396,9 @@ def create_app():
                 with gr.Column(scale=2):
                     modify_output = gr.Textbox(
                         label="修改结果",
-                        lines=15,
-                        interactive=False
+                        lines=23,
+                        interactive=False,
+                        placeholder="默认新的路径前缀与图片目录一致时无需验证"
                     )
             
             # 添加事件绑定
