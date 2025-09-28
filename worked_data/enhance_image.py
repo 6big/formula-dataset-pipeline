@@ -1,164 +1,334 @@
 import os
 import cv2
 import numpy as np
+import json
+from pathlib import Path
 
-def apply_enhancements(image):
+def apply_enhancements(image, random_seed: int = None):
     """
-    应用指定的增强操作：
-    1. 只做5°旋转
-    2. 使用最近邻插值保持原画质
-    3. 不添加任何其他处理
+    应用 ±5° 旋转增强
+    
+    Args:
+        image: OpenCV 图像数组
+        random_seed: 随机种子，用于复现结果
     """
-    # 只做5°旋转
+    if random_seed is not None:
+        np.random.seed(random_seed)
+    
     angle = np.random.uniform(-5, 5)
     
-    # 获取图像尺寸
     if len(image.shape) == 3:
         h, w = image.shape[:2]
     else:
         h, w = image.shape
     
-    # 计算旋转中心
     center = (w // 2, h // 2)
-    
-    # 应用旋转，使用最近邻插值保持原画质
-    scale_matrix = cv2.getRotationMatrix2D(center, angle, 0.9)  # 1.0表示不缩放
+    rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
     
     # 计算新边界尺寸
-    cos_angle = abs(scale_matrix[0, 0])
-    sin_angle = abs(scale_matrix[0, 1])
+    cos_angle = abs(rotation_matrix[0, 0])
+    sin_angle = abs(rotation_matrix[0, 1])
     new_w = int((h * sin_angle) + (w * cos_angle))
     new_h = int((h * cos_angle) + (w * sin_angle))
     
-    # 调整变换矩阵
-    scale_matrix[0, 2] += (new_w / 2) - center[0]
-    scale_matrix[1, 2] += (new_h / 2) - center[1]
+    # 调整变换矩阵以保持中心
+    rotation_matrix[0, 2] += (new_w / 2) - center[0]
+    rotation_matrix[1, 2] += (new_h / 2) - center[1]
     
-    # 应用变换，使用最近邻插值保持原画质
-    if len(image.shape) == 3:
-        enhanced = cv2.warpAffine(image, scale_matrix, (new_w, new_h), 
-                                flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REFLECT)
-    else:
-        enhanced = cv2.warpAffine(image, scale_matrix, (new_w, new_h), 
-                                flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_REFLECT)
+    enhanced = cv2.warpAffine(
+        image, 
+        rotation_matrix, 
+        (new_w, new_h), 
+        flags=cv2.INTER_NEAREST,
+        borderMode=cv2.BORDER_REFLECT
+    )
     
     return enhanced
 
+def _get_images_from_jsonl(dataset_jsonl):
+    """从 JSONL 文件获取图片列表的辅助函数"""
+    jsonl_images = set()
+    try:
+        with open(dataset_jsonl, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        data = json.loads(line.strip())
+                        for img_path in data.get('images', []):
+                            filename = os.path.basename(img_path)
+                            jsonl_images.add(filename)
+                    except json.JSONDecodeError:
+                        continue
+    except Exception as e:
+        print(f"⚠️ 读取 JSONL 文件时出错: {e}")
+    return jsonl_images
 
-def enhance_formula_image(input_path, output_path, target_height=128, apply_augmentation=False):
+def enhance_images_in_place(
+    images_dir: str,
+    dataset_jsonl: str = None,
+    num_to_augment: int = None,
+    augmentation_ratio: float = 0.1,
+    enhance_strategy: str = "deterministic",
+    backup_original: bool = False,
+    random_seed: int = 42  # 新增：随机种子
+) -> str:
     """
-    处理单张图像
+    原地增强图片（直接替换原图）
+    
+    Args:
+        images_dir: 图片目录
+        dataset_jsonl: 可选，JSONL 文件路径
+        num_to_augment: 要增强的数量
+        augmentation_ratio: 增强比例
+        enhance_strategy: 增强策略
+        backup_original: 是否备份原图
+        random_seed: 随机种子，用于确定性增强
     """
     try:
-        # 读取图像
-        image = cv2.imread(input_path, cv2.IMREAD_UNCHANGED)  # 保持原图所有通道信息
-        if image is None:
-            raise ValueError("无法读取图像")
-
-        # 如果需要增强，则应用增强操作
-        if apply_augmentation:
-            print(f"🔄 应用增强操作: {os.path.basename(input_path)}")
-            image = apply_enhancements(image)
+        images_path = Path(images_dir)
+        if not images_path.exists():
+            return f"❌ 图片目录不存在: {images_dir}"
         
-        # 对于未增强的图像，直接保存
-        if not apply_augmentation:
-            # 直接复制文件以保持完全相同的画质
-            import shutil
-            shutil.copy2(input_path, output_path)
-            print(f"✅ 已处理: {output_path} (未增强，保持原画质)")
-            return
-
-        # ==================== 步骤1: 保持原图不变 ====================
-        processed = image
-
-        # ==================== 步骤2: 直接使用整个图像 ====================
-        # 对于公式图像，直接使用整个图像
-        cropped = processed
-
-        # ==================== 步骤3: 保存结果 ====================
-        # 使用适当压缩的PNG保存以减小文件体积
-        cv2.imwrite(output_path, cropped, [cv2.IMWRITE_PNG_COMPRESSION, 3])
-        print(f"✅ 已增强: {output_path} (尺寸: {cropped.shape[1]} x {cropped.shape[0]})")
-
+        # 支持的图像格式
+        supported_formats = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.gif'}
+        
+        # 获取要处理的图片列表
+        if dataset_jsonl and Path(dataset_jsonl).exists():
+            jsonl_images = _get_images_from_jsonl(dataset_jsonl)
+            all_images = []
+            for file in images_path.iterdir():
+                if file.suffix.lower() in supported_formats and file.name in jsonl_images:
+                    all_images.append(file.name)
+            print(f"🔍 从 JSONL 读取到 {len(jsonl_images)} 个图片引用，目录中找到 {len(all_images)} 个匹配的图片")
+        else:
+            all_images = []
+            for file in images_path.iterdir():
+                if file.suffix.lower() in supported_formats:
+                    all_images.append(file.name)
+            print(f"📁 目录中找到 {len(all_images)} 个图片文件")
+        
+        if not all_images:
+            return f"❌ 目录中没有找到要处理的图片文件"
+        
+        all_images.sort()
+        
+        # 确定要增强的图片索引（设置随机种子确保确定性）
+        np.random.seed(random_seed)
+        total_images = len(all_images)
+        
+        if enhance_strategy == "all":
+            indices_to_augment = set(range(total_images))
+        elif enhance_strategy == "random":
+            if num_to_augment is None:
+                num_to_augment = int(total_images * augmentation_ratio)
+            indices_to_augment = set(np.random.choice(
+                total_images, 
+                min(num_to_augment, total_images), 
+                replace=False
+            ))
+        else:  # "deterministic"
+            if num_to_augment is None:
+                num_to_augment = int(total_images * augmentation_ratio)
+            
+            if total_images <= num_to_augment:
+                indices_to_augment = set(range(total_images))
+            else:
+                step = total_images / num_to_augment
+                indices_to_augment = set()
+                for i in range(num_to_augment):
+                    idx = int(i * step)
+                    indices_to_augment.add(min(idx, total_images - 1))
+        
+        # 处理图像
+        processed_count = 0
+        augmented_count = 0
+        failed_count = 0
+        skipped_count = 0
+        
+        for idx, filename in enumerate(all_images):
+            image_path = images_path / filename
+            apply_augmentation = idx in indices_to_augment
+            
+            try:
+                if not image_path.exists():
+                    skipped_count += 1
+                    continue
+                
+                # 读取图像
+                image = cv2.imread(str(image_path), cv2.IMREAD_UNCHANGED)
+                if image is None:
+                    failed_count += 1
+                    print(f"⚠️ 无法读取图像: {filename}")
+                    continue
+                
+                # 备份原图
+                if backup_original:
+                    backup_path = image_path.with_suffix(image_path.suffix + '.bak')
+                    if not backup_path.exists():
+                        import shutil
+                        shutil.copy2(image_path, backup_path)
+                
+                # 应用增强
+                if apply_augmentation:
+                    enhanced_image = apply_enhancements(image, random_seed=idx)  # 每张图用不同种子避免完全相同
+                    cv2.imwrite(str(image_path), enhanced_image, [cv2.IMWRITE_PNG_COMPRESSION, 3])
+                    augmented_count += 1
+                
+                processed_count += 1
+                    
+            except Exception as e:
+                print(f"❌ 处理失败 {filename}: {e}")
+                failed_count += 1
+            
+            # 进度显示
+            if processed_count % 50 == 0:
+                print(f"📊 进度: {processed_count}/{total_images} (已增强: {augmented_count})")
+        
+        result = (
+            f"✅ 图像增强完成！（原地替换）\n"
+            f"📊 总图片: {total_images}\n"
+            f"🔄 已增强: {augmented_count}\n"
+            f"❌ 处理失败: {failed_count}\n"
+            f"🎯 策略: {enhance_strategy}\n"
+            f"🔧 随机种子: {random_seed}\n"
+            f"📁 目录: {images_dir}\n"
+        )
+        
+        if skipped_count > 0:
+            result += f"⚠️ 跳过: {skipped_count} 张（可能不在 JSONL 中）\n"
+        
+        if dataset_jsonl:
+            result += f"📋 参考 JSONL: {dataset_jsonl}\n"
+        
+        return result
+        
     except Exception as e:
-        print(f"⚠️ 处理失败: {input_path} -> {e}")
-        # 完全失败时，复制原始文件
-        try:
-            import shutil
-            shutil.copy2(input_path, output_path)
-            print(f"🔄 失败回退，已复制原始图像: {output_path}")
-        except:
-            pass
+        return f"❌ 增强失败: {str(e)}"
 
+# 其他函数保持不变...
+def enhance_images_to_new_dir(
+    input_dir: str,
+    output_dir: str,
+    dataset_jsonl: str = None,
+    num_to_augment: int = None,
+    augmentation_ratio: float = 0.1,
+    enhance_strategy: str = "deterministic",
+    random_seed: int = 42
+) -> str:
+    """增强图片到新目录"""
+    try:
+        input_path = Path(input_dir)
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        # 获取图片列表
+        supported_formats = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.gif'}
+        
+        if dataset_jsonl and Path(dataset_jsonl).exists():
+            jsonl_images = _get_images_from_jsonl(dataset_jsonl)
+            all_images = []
+            for file in input_path.iterdir():
+                if file.suffix.lower() in supported_formats and file.name in jsonl_images:
+                    all_images.append(file.name)
+        else:
+            all_images = []
+            for file in input_path.iterdir():
+                if file.suffix.lower() in supported_formats:
+                    all_images.append(file.name)
+        
+        if not all_images:
+            return f"❌ 输入目录中没有找到图片文件"
+        
+        all_images.sort()
+        
+        # 确定要增强的图片索引
+        np.random.seed(random_seed)
+        total_images = len(all_images)
+        
+        if enhance_strategy == "all":
+            indices_to_augment = set(range(total_images))
+        elif enhance_strategy == "random":
+            if num_to_augment is None:
+                num_to_augment = int(total_images * augmentation_ratio)
+            indices_to_augment = set(np.random.choice(
+                total_images, 
+                min(num_to_augment, total_images), 
+                replace=False
+            ))
+        else:
+            if num_to_augment is None:
+                num_to_augment = int(total_images * augmentation_ratio)
+            
+            if total_images <= num_to_augment:
+                indices_to_augment = set(range(total_images))
+            else:
+                step = total_images / num_to_augment
+                indices_to_augment = set()
+                for i in range(num_to_augment):
+                    idx = int(i * step)
+                    indices_to_augment.add(min(idx, total_images - 1))
+        
+        # 处理图像
+        processed_count = 0
+        augmented_count = 0
+        failed_count = 0
+        
+        for idx, filename in enumerate(all_images):
+            input_path_file = input_path / filename
+            output_path_file = output_path / filename
+            apply_augmentation = idx in indices_to_augment
+            
+            try:
+                image = cv2.imread(str(input_path_file), cv2.IMREAD_UNCHANGED)
+                if image is None:
+                    failed_count += 1
+                    continue
+                
+                if apply_augmentation:
+                    enhanced_image = apply_enhancements(image, random_seed=idx)
+                    cv2.imwrite(str(output_path_file), enhanced_image, [cv2.IMWRITE_PNG_COMPRESSION, 3])
+                    augmented_count += 1
+                else:
+                    import shutil
+                    shutil.copy2(input_path_file, output_path_file)
+                
+                processed_count += 1
+                    
+            except Exception as e:
+                print(f"❌ 处理失败 {filename}: {e}")
+                failed_count += 1
+        
+        return (
+            f"✅ 图像增强完成！（复制到新目录）\n"
+            f"📊 总图片: {total_images}\n"
+            f"🔄 已增强: {augmented_count}\n"
+            f"❌ 处理失败: {failed_count}\n"
+            f"🔧 随机种子: {random_seed}\n"
+            f"📁 输入目录: {input_dir}\n"
+            f"📁 输出目录: {output_dir}\n"
+        )
+        
+    except Exception as e:
+        return f"❌ 增强失败: {str(e)}"
 
-def enhance_images_in_directory(input_dir, output_dir, target_height=128, num_to_augment=40):
-    """
-    处理目录中的图像，按确定性方式选择指定数量的图像进行增强
-    由于所有图片都有标签，需要保持图像和标签的对应关系
-    """
-    supported_formats = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.gif')
-    os.makedirs(output_dir, exist_ok=True)
-
-    # 获取所有支持的图像文件并排序（确保确定性）
-    all_images = []
-    for filename in os.listdir(input_dir):
-        if filename.lower().endswith(supported_formats):
-            all_images.append(filename)
-    
-    # 按文件名字典序排序，确保每次运行结果一致
-    all_images.sort()
-    
-    print(f"📁 找到 {len(all_images)} 张图像")
-    
-    # 确定要增强的图片索引（等间隔选择）
-    if len(all_images) <= num_to_augment:
-        indices_to_augment = set(range(len(all_images)))
-        print(f"⚠️ 图像总数({len(all_images)}) <= 要增强的数量({num_to_augment})，将增强所有图像")
+def enhance_images_with_backup(
+    images_dir: str,
+    output_dir: str = None,
+    dataset_jsonl: str = None,
+    num_to_augment: int = None,
+    augmentation_ratio: float = 0.1,
+    enhance_strategy: str = "deterministic",
+    random_seed: int = 42
+) -> str:
+    """增强图片（支持备份模式）"""
+    if output_dir:
+        return enhance_images_to_new_dir(
+            images_dir, output_dir, dataset_jsonl, 
+            num_to_augment, augmentation_ratio, enhance_strategy, random_seed
+        )
     else:
-        # 等间隔选择索引
-        step = len(all_images) / num_to_augment
-        indices_to_augment = set()
-        for i in range(num_to_augment):
-            idx = int(i * step)
-            indices_to_augment.add(min(idx, len(all_images) - 1))
-        print(f"🎯 等间隔选择 {num_to_augment} 张图像进行增强")
-
-    # 处理所有图像
-    processed_count = 0
-    augmented_count = 0
-    
-    for idx, filename in enumerate(all_images):
-        input_path = os.path.join(input_dir, filename)
-        output_path = os.path.join(output_dir, filename)
-        
-        # 检查是否需要应用增强
-        apply_augmentation = idx in indices_to_augment
-        
-        enhance_formula_image(input_path, output_path, target_height, apply_augmentation)
-        
-        if apply_augmentation:
-            augmented_count += 1
-        processed_count += 1
-        
-        # 显示进度
-        if processed_count % 20 == 0:
-            print(f"📊 进度: {processed_count}/{len(all_images)} (已增强: {augmented_count})")
-    
-    print(f"\n✅ 处理完成!")
-    print(f"📊 总处理: {processed_count} 张")
-    print(f"📊 增强操作: {augmented_count} 张")
-
-
-if __name__ == "__main__":
-    input_dir = "./transfer_data/generate_images"
-    output_dir = "./worked_data/images"
-    NUM_TO_AUGMENT = 120  # 增强120张图像
-
-    if not os.path.exists(input_dir):
-        print(f"❌ 输入路径不存在: {input_dir}")
-    elif os.path.isfile(input_dir):
-        os.makedirs(os.path.dirname(output_dir), exist_ok=True)
-        print("🔄 处理单个文件（应用增强）")
-        enhance_formula_image(input_dir, output_dir, apply_augmentation=True)
-    elif os.path.isdir(input_dir):
-        enhance_images_in_directory(input_dir, output_dir, num_to_augment=NUM_TO_AUGMENT)
+        return enhance_images_in_place(
+            images_dir, dataset_jsonl,
+            num_to_augment, augmentation_ratio, enhance_strategy, 
+            random_seed=random_seed  # 新增随机种子参数
+        )
