@@ -1,0 +1,23 @@
+# Python 缓存文件
+__pycache__/
+*.pyc
+
+# 临时文件和测试目录
+OOO_test_workspace/
+temp/
+output/
+*.log
+
+# IDE 文件
+.vscode/
+.idea/
+
+# 环境文件
+venv/
+env/
+*.env
+
+# 数据文件（如果不想提交）
+*.parquet
+*.jsonl
+images/
