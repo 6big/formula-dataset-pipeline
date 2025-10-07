@@ -2,40 +2,43 @@
 
 一个轻量级、端到端的合成数学公式数据集生成流水线，专为构建公式识别数据集（Mathematical Expression Recognition / Math OCR）任务设计。
 
-> ✨ **无需安装系统级 LaTeX！仅依赖 `matplotlib` 即可渲染公式图像，开箱即用。**  
+> ✨ **无需安装系统级 LaTeX！仅依赖 `matplotlib` 渲染公式图像，开箱即用。支持最多10K数据**  
 > 已在 **Python 3.10（Anaconda 3.10.18）** 环境下验证通过。
 ---
 
 ## 项目结构
 
 本项目采用三阶段工作流，确保数据质量与流程清晰：
-## 项目结构
-
-本项目采用三阶段工作流，确保数据质量与流程清晰：
-
 
 ```text
 formula-dataset-pipeline/
+├── demo.py                         # 图形交互界面
 ├── origin_data/
-│   ├── check.py          # 检查原始数据列名与内容
-│   └── convert.py        # 转换为 jsonl + images 文件夹
+│   ├── check.py                    # 检查原始数据列名与内容
+│   └── convert.py                  # 提取、转换为 jsonl (id和latex标签)
 ├── transfer_data/
-│   ├── generate_formula_images.py   # 生成透明背景公式图
-│   └── compare.py        # 人工核验后清理无效样本
+│   ├── generate_formula_images.py  # 生成透明背景公式图
+│   └── compare.py                  # 人工核验后清理无效样本
 └── worked_data/
-    ├── enhance_image.py  # ±5° 随机旋转增强
-    └── modify_image_paths.py  # 修正图像路径  
+    ├── enhance_image.py            # ±5° 随机旋转增强
+    └── modify_image_paths.py       # 修正图像路径  
 ```
 
-## 输出成果
+## 快速上手
+
+安装部署：
+1. git clone https://github.com/6big/formula-dataset-pipeline.git
+2. pip install -r requirements.txt
+3. python demo.py ————>点击链接进入图形界面
+
+![Demo](.gradio/demo.png)
 
 最终生成：
-
 - `worked_data/images/`：增强后的 PNG 公式图像（透明背景）  
 - `worked_data/add_train.jsonl`：与图像严格对应的标注文件，格式如下：
 
 ```json
-{"image": "images/00001.png", "latex": "x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}"}
+{"image": "images/000001.png", "latex": "x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}"}
 ```
 
 ## 环境要求
@@ -61,7 +64,7 @@ formula-dataset-pipeline/
 - `\sum_{i=1}^n x_i`  
 - `\int_0^\infty e^{-x^2} dx`  
 
-> 如果原始数据包含不支持的语法，`generate_formula_images.py` 会报错。建议在 `convert.py` 阶段做预处理或过滤。
+> 如果原始数据包含不支持的语法，`generate_formula_images.py` 会提示。 `convert.py` 阶段已做过滤。
 
 ## 📚 引用本项目
 
