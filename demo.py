@@ -97,7 +97,7 @@ def create_app():
                 fn=convert_to_latex_jsonl,
                 inputs=[
                     step2_file_input, 
-                    gr.State(""),  # output_dir参数暂时不用，因为函数内已固定
+                    gr.State(""), 
                     sample_interval,
                     target_samples,
                     total_records_limit

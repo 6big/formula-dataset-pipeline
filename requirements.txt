@@ -21,3 +21,4 @@ setuptools==78.1.1
 six==1.17.0
 tzdata==2025.2
 wincertstore==0.2
+gradio==5.47.0
