@@ -69,18 +69,18 @@ def create_app():
                         gr.Markdown("#### 采样参数")
                         sample_interval = gr.Number(
                             label="采样间隔",
-                            value=20,
+                            value=20,minimum=0,
                             precision=0
                         )
                         target_samples = gr.Number(
                             label="目标样本数",
-                            value=300,
+                            value=300,minimum=0,
                             precision=0
                         )
                         total_records_limit = gr.Number(
                             label="总记录限制",
-                            value=10000,
-                            precision=0
+                            value=100000,
+                            interactive=False,
                         )
                     
                     convert_btn = gr.Button("🔄 转换为JSONL")
@@ -110,12 +110,12 @@ def create_app():
                 with gr.Column(scale=1):
                     output_dir = gr.Textbox(
                         label="输出目录",
-                        value="transfer_data/output",
+                        value="./transfer_data/output",
                         placeholder="请输入输出目录路径"
                     )
                     input_jsonl = gr.Textbox(
                         label="输入JSONL文件路径",
-                        value="origin_data/output/formulas.jsonl",
+                        value="./origin_data/output/formulas.jsonl",
                         placeholder="请输入JSONL文件路径"
                     )
                     user_prompt = gr.Textbox(
@@ -126,7 +126,7 @@ def create_app():
                     
                     with gr.Group():
                         gr.Markdown("#### 渲染参数")
-                        dpi = gr.Number(label="DPI", value=100, precision=0)
+                        dpi = gr.Number(label="DPI", value=100, precision=0,)
                         fontsize = gr.Number(label="字体大小", value=20, precision=0)
                         
                         with gr.Row():
@@ -174,7 +174,7 @@ def create_app():
                     output_dir,
                     input_jsonl,
                     user_prompt,
-                    gr.State("formula"),  # image_prefix 参数固定为 "formula"
+                    gr.State("smaple"),  # image_prefix 参数固定为 "smaple"
                     dpi,
                     figsize_width,
                     figsize_height,
@@ -240,13 +240,14 @@ def create_app():
             with gr.Row():
                 with gr.Column(scale=1):
                     images_dir = gr.Textbox(
-                        label="图片目录",
+                        label="图片输入目录",
                         value="./transfer_data/output/images",
                         placeholder="请输入图片目录路径"
                     )
                     output_dir = gr.Textbox(
-                        label="输出目录（留空表示原地增强）",
-                        placeholder="请输入输出目录路径（可选）"
+                        label="图片输出目录（可选）",
+                        value="./worked_data/output/images",
+                        placeholder="留空表示原目录增强"
                     )
                     dataset_jsonl = gr.Textbox(
                         label="JSONL文件路径（可选）",
@@ -273,9 +274,12 @@ def create_app():
                                 precision=0,
                                 interactive=True
                             )
-                            augmentation_ratio = gr.Number(
+                            augmentation_ratio = gr.Slider(
                                 label="增强比例",
-                                value=0.1,
+                                value=float(0.1),
+                                minimum=0, 
+                                maximum=1, 
+                                step=0.01,
                                 interactive=True
                             )
                         
@@ -288,7 +292,7 @@ def create_app():
                     with gr.Group():
                         gr.Markdown("#### 备份选项")
                         backup_original = gr.Checkbox(
-                            label="备份原图（仅在原地增强时有效）",
+                            label="备份原图（仅在原目录增强时有效）",
                             value=False
                         )
                     
@@ -298,7 +302,9 @@ def create_app():
                     enhance_output = gr.Textbox(
                         label="增强结果",
                         lines=37,
-                        interactive=False
+                        interactive=False,
+                        placeholder="tip:\n "
+                        "1.确定性增强策略通过等间距采样,相同输入参数每次产生相同增强结果。\n"
                     )
             
             # 策略变化的交互逻辑
@@ -380,7 +386,7 @@ def create_app():
                     )
                     new_prefix = gr.Textbox(
                         label="新路径前缀",
-                        value="worked_data/images/",
+                        value="./worked_data/output/images/",
                         placeholder="请输入新的路径前缀"
                     )
                     
@@ -398,8 +404,15 @@ def create_app():
                         label="修改结果",
                         lines=23,
                         interactive=False,
-                        placeholder="默认新的路径前缀与图片目录一致时无需验证"
+                        placeholder="tip:\n "
+                                "1.默认新路径前缀与图片目录一致，新路径存在，无需验证。\n"
+                                "2.若部分图片路径不存在，请检查图片增强环节是否选择了[原始增强]? \n"
+                                "3.若选择了[原始增强],图片路径在transfer_data/output/images下。\n" 
+                                "回到步骤5,增强后图片默认输出到worked_data/output/images下。\n" 
+                                "4.为方便数据集便于迁移使用，请将图片新路径前缀设置为 ./output/images 下。\n"
+                                "  训练使用数据集时可以直接指定目录为 ./output/modified_dataset.jsonl  "
                     )
+
             
             # 添加事件绑定
             def wrap_modify_image_paths(input_jsonl, output_jsonl, old_prefix, new_prefix, validate_paths):
@@ -432,4 +445,4 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    app.launch(share=True)  # share=True 可以生成公共链接
+    app.launch(inbrowser=True)
