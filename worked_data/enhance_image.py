@@ -44,25 +44,25 @@ def apply_enhancements(image, random_seed: int = None):
     )
     
     return enhanced
-
 def _get_images_from_jsonl(dataset_jsonl):
     """从 JSONL 文件获取图片列表的辅助函数"""
-    jsonl_images = set()
+    def parse_line(line):
+        try:
+            return json.loads(line.strip()).get('images', [])
+        except (json.JSONDecodeError, AttributeError):
+            return []
+
     try:
         with open(dataset_jsonl, 'r', encoding='utf-8') as f:
-            for line in f:
-                if line.strip():
-                    try:
-                        data = json.loads(line.strip())
-                        for img_path in data.get('images', []):
-                            filename = os.path.basename(img_path)
-                            jsonl_images.add(filename)
-                    except json.JSONDecodeError:
-                        continue
+            return {
+                os.path.basename(img_path)
+                for line in f
+                if line.strip()
+                for img_path in parse_line(line)
+            }
     except Exception as e:
         print(f"⚠️ 读取 JSONL 文件时出错: {e}")
-    return jsonl_images
-
+        return set()
 def enhance_images_in_place(
     images_dir: str,
     dataset_jsonl: str = None,
@@ -208,11 +208,11 @@ def enhance_images_in_place(
 # 其他函数保持不变...
 def enhance_images_to_new_dir(
     input_dir: str,
-    output_dir: str,
+    output_dir: str = "./worked_data/output/images",
     dataset_jsonl: str = None,
     num_to_augment: int = None,
     augmentation_ratio: float = 0.1,
-    enhance_strategy: str = "deterministic",
+    enhance_strategy: str = None,
     random_seed: int = 42
 ) -> str:
     """增强图片到新目录"""

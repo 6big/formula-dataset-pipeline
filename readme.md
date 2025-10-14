@@ -3,7 +3,7 @@
 一个轻量级、端到端的合成数学公式数据集生成流水线，专为构建公式识别数据集（Mathematical Expression Recognition / Math OCR）任务设计。
 
 > ✨ **无需安装系统级 LaTeX！仅依赖 `matplotlib` 渲染公式图像，开箱即用。支持最多10K数据**  
-> 已在 **Python 3.10（Anaconda 3.10.18）** 环境下验证通过。
+> 已在 **Python 3.11** 环境下验证通过。
 ---
 
 ## 项目结构
@@ -29,7 +29,7 @@ formula-dataset-pipeline/
 安装部署：
 1. git clone https://github.com/6big/formula-dataset-pipeline.git
 2. pip install -r requirements.txt
-3. python demo.py ————>点击链接进入图形界面
+3. python demo.py ————>浏览器自动打开界面
 
 ![Demo](.gradio/demo.png)
 
@@ -43,7 +43,7 @@ formula-dataset-pipeline/
 
 ## 环境要求
 
-- Python 3.10  
+- Python 3.11  
 - 仅需 Python 库依赖（见 `requirements.txt`）  
 - 无需安装任何系统级 LaTeX 发行版（如 TeX Live、MiKTeX）  
 
