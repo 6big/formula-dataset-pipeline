@@ -136,7 +136,7 @@ def process_image_batch(batch_params: Tuple[List[Dict], Path, int, tuple, int, s
 # --- 3. 核心生成函数 ---
 def generate_formula_images(
     output_dir: str,
-    input_jsonl: str = "origin_data/output/formulas.jsonl",
+    input_jsonl: str = "transfer_data/input/formulas.jsonl",
     user_prompt: str = "请根据以下 LaTeX 公式生成相应的数学表达式图片。",
     image_prefix: str = "sample", # 修改默认前缀
     dpi: int = 100,

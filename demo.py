@@ -10,17 +10,11 @@ if project_root not in sys.path:
 
 # 导入后端函数
 from origin_data.check import check_columns
-from origin_data.convert import is_valid_latex
-from origin_data.convert import convert_to_latex_jsonl 
-from transfer_data.generate_formula_images import fix_latex_syntax
-from transfer_data.generate_formula_images import validate_latex_syntax
-from transfer_data.generate_formula_images import render_latex_to_png
+from transfer_data.convert import convert_to_latex_jsonl 
 from transfer_data.generate_formula_images import generate_formula_images
-from transfer_data.generate_formula_images import create_placeholder_image
-from transfer_data.compare import extract_image_number
 from transfer_data.compare import compare_and_clean
-from worked_data.enhance_image import apply_enhancements, enhance_images_in_place, enhance_images_to_new_dir
-from worked_data.modify_image_paths import modify_image_paths, batch_modify_paths, modify_image_paths_with_validation
+from worked_data.enhance_image import enhance_images_in_place, enhance_images_to_new_dir
+from worked_data.analyze_jsonl import analyze_jsonl
 
 def create_app():
     with gr.Blocks(
@@ -110,12 +104,12 @@ def create_app():
                 with gr.Column(scale=1):
                     output_dir = gr.Textbox(
                         label="输出目录",
-                        value="./transfer_data/output",
+                        value="transfer_data/output",
                         placeholder="请输入输出目录路径"
                     )
                     input_jsonl = gr.Textbox(
                         label="输入JSONL文件路径",
-                        value="./origin_data/output/formulas.jsonl",
+                        value="transfer_data/input/formulas.jsonl",
                         placeholder="请输入JSONL文件路径"
                     )
                     user_prompt = gr.Textbox(
@@ -174,7 +168,7 @@ def create_app():
                     output_dir,
                     input_jsonl,
                     user_prompt,
-                    gr.State("smaple"),  # image_prefix 参数固定为 "smaple"
+                    gr.State("formula"),  # image_prefix 参数固定为 "formula"
                     dpi,
                     figsize_width,
                     figsize_height,
@@ -408,9 +402,7 @@ def create_app():
                                 "1.默认新路径前缀与图片目录一致，新路径存在，无需验证。\n"
                                 "2.若部分图片路径不存在，请检查图片增强环节是否选择了[原始增强]? \n"
                                 "3.若选择了[原始增强],图片路径在transfer_data/output/images下。\n" 
-                                "回到步骤5,增强后图片默认输出到worked_data/output/images下。\n" 
-                                "4.为方便数据集便于迁移使用，请将图片新路径前缀设置为 ./output/images 下。\n"
-                                "  训练使用数据集时可以直接指定目录为 ./output/modified_dataset.jsonl  "
+                                "回到步骤5,增强后图片默认输出到worked_data/output/images下。" 
                     )
 
             
@@ -439,10 +431,176 @@ def create_app():
                 outputs=modify_output
             )
         
+        with gr.Tab("步骤 7：数据集分析"):
+            with gr.Row():
+                with gr.Column(scale=1, min_width=100):
+                    with gr.Group():
+                        input_jsonl_path = gr.Textbox(
+                            label="输入JSONL文件路径",
+                            value="./worked_data/output/modified_dataset.jsonl",
+                            placeholder="请输入要分析的JSONL文件路径",
+                            scale=1  
+                        )
+                        upload_btn = gr.UploadButton(
+                            label="📁 上传其他数据集",
+                            file_types=[".jsonl"],
+                            scale=1  
+                        )
+                    output_html_path = gr.Textbox(
+                        label="输出HTML报告路径",
+                        value="analysis_report.html",  # 默认报告名
+                        placeholder="请输入HTML报告文件名（如 analysis_report.html）"
+                    )
+                    
+                    with gr.Group():
+                        gr.Markdown("#### 分析选项")
+                        use_ai_analysis = gr.Checkbox(
+                            label="启用 AI 分析（需要书生 API Key）",
+                            value=False
+                        )
+                        
+                    with gr.Group(visible=False) as ai_group:  # 默认隐藏 AI 配置
+                        gr.Markdown("#### 书生 API 配置")
+                        ai_api_key = gr.Textbox(
+                            label="API Key",
+                            type="password",  # 密码框，不显示内容
+                            placeholder="请输入书生 API Key"
+                        )
+                        ai_model = gr.Dropdown(
+                            label="模型选择",
+                            choices=[
+                                "intern-latest",
+                                "intern-s1", 
+                                "intern-s1-mini",
+                                "internvl3.5-241b-a28b",
+                                "internvl3-latest",
+                                "internvl3-78b"
+                            ],
+                            value="intern-latest"
+                        )
+                    
+                    analyze_btn = gr.Button("📊 开始分析")
+                
+                with gr.Column(scale=2, min_width=600):
+                    #  两个图表并排
+                    with gr.Row():
+                        latex_length_chart = gr.Image(
+                            label="LaTeX 长度分布图",
+                            show_label=True,
+                            width=300,
+                            height=250,
+                            interactive=False
+                        )
+                        formula_type_chart = gr.Image(
+                            label="公式类型分布图",
+                            show_label=True,
+                            width=300,
+                            height=250,
+                            interactive=False
+                        )
+                    
+                    # 文本结果摘要
+                    analysis_result_summary = gr.Textbox(
+                        label="分析结果摘要",
+                        lines=5,
+                        interactive=False
+                    )
+                    # HTML报告展示组件
+                    report_html_display = gr.HTML(
+                        label="详细分析报告",
+                        show_label=True
+                    )
+                    
+                    
+
+            # 添加事件绑定：当上传按钮被点击时，更新文本框的值
+            def update_input_path(file):
+                if file is not None:
+                    return file.name
+                return ""
+            
+            upload_btn.upload(
+                fn=update_input_path,
+                inputs=upload_btn,
+                outputs=input_jsonl_path
+            )
+            
+            #  AI 选项切换逻辑
+            def toggle_ai_options(use_ai):
+                return gr.update(visible=use_ai)
+            
+            use_ai_analysis.change(
+                fn=toggle_ai_options,
+                inputs=use_ai_analysis,
+                outputs=ai_group
+            )
+            
+            #  添加事件绑定
+            def wrap_analyze_jsonl(input_jsonl_path, output_html_path, use_ai_analysis, ai_api_key, ai_model):
+                #  增加校验：如果启用了 AI 但 Key 为空，直接提示用户
+                if use_ai_analysis and (not ai_api_key or not ai_api_key.strip()):
+                    return None, None, "<p>❌ 请先输入有效的书生 API Key。</p>", "❌ 请先输入有效的书生 API Key。"
+                
+                # 导入 OUTPUT_DIR 以便找到生成的图表
+                from worked_data.analyze_jsonl import OUTPUT_DIR as ANALYSIS_OUTPUT_DIR
+                
+                try:
+                    # 调用后端分析函数（现在返回 df 和 report_html）
+                    df, report_html = analyze_jsonl(
+                        input_path=input_jsonl_path,
+                        output_html=output_html_path if output_html_path.strip() else None,
+                        use_ai=use_ai_analysis,
+                        ai_key=ai_api_key if use_ai_analysis else None,
+                        ai_model=ai_model if use_ai_analysis else None
+                    )
+                    
+                    # 构造简要文本结果（可选）
+                    result_msg = f"✅ 分析完成！\n\n"
+                    result_msg += f"📊 读取样本数: {len(df)}\n"
+                    result_msg += f"📁 生成的图表保存在: {ANALYSIS_OUTPUT_DIR}\n"
+                    if output_html_path.strip():
+                        result_msg += f"📄 HTML 报告: {output_html_path}\n"
+                    
+                    #  加载生成的图表
+                    length_chart_path = os.path.join(ANALYSIS_OUTPUT_DIR, "latex_length_dist.png")
+                    type_chart_path = os.path.join(ANALYSIS_OUTPUT_DIR, "formula_type_dist.png")
+                    
+                    # 返回结果：图表 + 完整 HTML 报告 + 简要文本（可选保留）
+                    return (
+                        length_chart_path,
+                        type_chart_path,
+                        report_html,  # 直接返回 HTML 字符串
+                        result_msg
+                    )
+                
+                except FileNotFoundError as e:
+                    error_msg = f"❌ 文件未找到: {e}"
+                    return None, None, "<p>❌ 分析失败</p>", error_msg
+                except Exception as e:
+                    error_msg = f"❌ 分析失败: {str(e)}"
+                    return None, None, "<p>❌ 分析失败</p>", error_msg
+        
+            analyze_btn.click(
+                fn=wrap_analyze_jsonl,
+                inputs=[
+                    input_jsonl_path,
+                    output_html_path,
+                    use_ai_analysis,
+                    ai_api_key,
+                    ai_model
+                ],
+                outputs=[
+                    latex_length_chart,     # 输出1：长度分布图
+                    formula_type_chart,     # 输出2：类型分布图
+                    report_html_display,    # 输出3：完整 HTML 报告
+                    analysis_result_summary  # 输出4：简要文本结果
+                ]
+            )
+
         with gr.Tab("使用说明"):
             gr.Markdown("待开发...")
     return demo
 
 if __name__ == "__main__":
     app = create_app()
-    app.launch(inbrowser=True)
+    app.launch(inbrowser=False, share=False)

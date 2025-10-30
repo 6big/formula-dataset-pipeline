@@ -57,10 +57,15 @@ def convert_to_latex_jsonl(
                 continue
 
         # 保存
-        # 修改这里：将输出路径设置为origin_data目录下的output文件夹
-        fixed_output_dir = os.path.join("origin_data", "output")
-        Path(fixed_output_dir).mkdir(parents=True, exist_ok=True)
-        jsonl_path = os.path.join(fixed_output_dir, "formulas.jsonl")
+        # 如果output_dir参数为空，则使用默认的transfer_data/input目录
+        if not output_dir:
+            # 获取当前脚本所在目录的父目录，然后构建transfer_data/input路径
+            current_script_dir = os.path.dirname(os.path.abspath(__file__))
+            output_dir = os.path.join(current_script_dir, "input")
+        
+        # 确保输出目录存在
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        jsonl_path = os.path.join(output_dir, "formulas.jsonl")
         with open(jsonl_path, 'w', encoding='utf-8') as f:
             for item in items:
                 f.write(json.dumps(item, ensure_ascii=False) + "\n")

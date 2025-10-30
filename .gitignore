@@ -5,6 +5,7 @@ __pycache__/
 # 临时文件和测试目录
 OOO_test_workspace/
 temp/
+input/
 output/
 *.log
 
@@ -21,3 +22,9 @@ env/
 *.parquet
 *.jsonl
 images/
+
+
+# 敏感信息文件
+*.key
+*.token
+api_key.txt
