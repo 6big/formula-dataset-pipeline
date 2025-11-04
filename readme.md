@@ -15,7 +15,7 @@ formula-dataset-pipeline/
 ├── demo.py                         # 图形交互界面
 ├── origin_data/
 │   ├── check.py                    # 1. 检查原始数据列名与内容
-|   └──analyze_pre_sampling.py      # 2. 采样预分析并输出采样规则
+|   └── analyze_pre_sampling.py     # 2. 采样预分析并输出采样规则
 ├── transfer_data/
 │   ├── convert.py                  # 3. 提取、转换为 jsonl (id和latex标签)
 │   ├── generate_formula_images.py  # 4. 生成透明背景公式图
