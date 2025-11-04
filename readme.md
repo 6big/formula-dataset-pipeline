@@ -2,7 +2,7 @@
 
 一个轻量级、端到端的合成数学公式数据集生成流水线，专为构建公式识别数据集（Mathematical Expression Recognition / Math OCR）任务设计。Parquet 格式转换为JSONL 格式，并生成透明背景 PNG 公式图像。
 
-> ✨ **无需安装系统级 LaTeX！仅依赖 `matplotlib` 渲染公式图像，开箱即用。支持最多10K数据**  
+> ✨ **无需安装系统级 LaTeX！仅依赖 `matplotlib` 渲染公式图像，开箱即用。支持最多10K数据**
 > 已在 **Python 3.11** 环境下验证通过。
 ---
 
@@ -15,14 +15,14 @@ formula-dataset-pipeline/
 ├── demo.py                         # 图形交互界面
 ├── origin_data/
 │   ├── check.py                    # 1. 检查原始数据列名与内容
-├── └──analyze_pre_sampling.py      # 2. 采样预分析
-├── transfer_data/                  
+|   └──analyze_pre_sampling.py      # 2. 采样预分析并输出采样规则
+├── transfer_data/
 │   ├── convert.py                  # 3. 提取、转换为 jsonl (id和latex标签)
 │   ├── generate_formula_images.py  # 4. 生成透明背景公式图
 │   └── compare.py                  # 5. 人工核验后清理无效样本
 └── worked_data/
     ├── enhance_image.py            # 6. ±5° 随机旋转增强
-    ├── modify_image_paths.py       # 7. 修正jsonl中的图像路径  
+    ├── modify_image_paths.py       # 7. 修正jsonl中的图像路径
     └── analyze_jsonl.py            # 8. 分析数据集质量
 ```
 
@@ -36,7 +36,7 @@ formula-dataset-pipeline/
 ![Demo](.gradio/demo.png)
 
 最终生成：
-- `worked_data/images/`：增强后的 PNG 公式图像（透明背景）  
+- `worked_data/images/`：增强后的 PNG 公式图像（透明背景）
 - `worked_data/add_train.jsonl`：与图像严格对应的标注文件，格式如下：
 
 ```json
@@ -45,9 +45,9 @@ formula-dataset-pipeline/
 
 ## 环境要求
 
-- Python 3.11  
-- 仅需 Python 库依赖（见 `requirements.txt`）  
-- 无需安装任何系统级 LaTeX 发行版（如 TeX Live、MiKTeX）  
+- Python 3.11
+- 仅需 Python 库依赖（见 `requirements.txt`）
+- 无需安装任何系统级 LaTeX 发行版（如 TeX Live、MiKTeX）
 
 > 公式渲染完全由 `matplotlib` 的 mathtext 引擎处理，纯 Python 实现，跨平台兼容。
 
@@ -55,16 +55,16 @@ formula-dataset-pipeline/
 
 `matplotlib` 的 mathtext 支持绝大多数标准数学符号，但不支持：
 
-- 自定义宏（如 `\newcommand`）  
-- 复杂排版环境（如 `align`、`gather`）  
-- `\text{}` 命令（建议改用 `\mathrm{}`）  
+- 自定义宏（如 `\newcommand`）
+- 复杂排版环境（如 `align`、`gather`）
+- `\text{}` 命令（建议改用 `\mathrm{}`）
 
 ✅ 完全支持的示例：
 
-- `x = \frac{a}{b}`  
-- `\sqrt{x^2 + y^2}`  
-- `\sum_{i=1}^n x_i`  
-- `\int_0^\infty e^{-x^2} dx`  
+- `x = \frac{a}{b}`
+- `\sqrt{x^2 + y^2}`
+- `\sum_{i=1}^n x_i`
+- `\int_0^\infty e^{-x^2} dx`
 
 > 如果原始数据包含不支持的语法，`generate_formula_images.py` 会提示。 `convert.py` 阶段已做过滤。
 
