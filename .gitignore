@@ -8,6 +8,7 @@ temp/
 input/
 output/
 *.log
+.pylintrc
 
 # IDE 文件
 .vscode/
