@@ -12,39 +12,6 @@ from concurrent.futures import ThreadPoolExecutor
 import platform
 from typing import Tuple, List, Dict, Any
 
-#  强力设置中文字体（解决中文显示问题）
-system = platform.system()
-if system == "Windows":
-    # Windows 系统优先使用中文字体，并检查字体文件是否存在
-    simhei_path = "C:/Windows/Fonts/simhei.ttf"
-    if os.path.exists(simhei_path):
-        matplotlib.rcParams["font.sans-serif"] = [
-            "SimHei",
-            "Microsoft YaHei",
-            "SimSun",
-            "DejaVu Sans",
-        ]
-    else:
-        # 如果黑体不存在，使用微软雅黑作为备选
-        matplotlib.rcParams["font.sans-serif"] = [
-            "Microsoft YaHei",
-            "SimSun",
-            "DejaVu Sans",
-        ]
-elif system == "Darwin":  # macOS
-    matplotlib.rcParams["font.sans-serif"] = [
-        "Arial Unicode MS",
-        "Heiti TC",
-        "DejaVu Sans",
-    ]
-else:  # Linux
-    matplotlib.rcParams["font.sans-serif"] = [
-        "WenQuanYi Micro Hei",
-        "Noto Sans CJK SC",
-        "DejaVu Sans",
-    ]
-matplotlib.rcParams["axes.unicode_minus"] = False
-
 # 设置绘图风格
 sns.set_style(style="whitegrid")
 plt.rcParams["figure.figsize"] = (10, 6)
@@ -110,26 +77,26 @@ def classify_formula_type(latex_str: str) -> str:
 
 # 学术领域分类的正则常量
 FORMULA_DOMAIN_PATTERNS = [
-    ("Statistics", r"\\Pr|\\prob|\\mathbb\{P\}|\\binom|\\mathcal\{N\}"),
-    ("Linear Algebra", r"\\vec|\\det|\\begin\{(?:matrix|pmatrix)\}"),
-    ("Logic", r"\\land|\\lor|\\lnot|\\forall|\\exists|\\Rightarrow"),
-    ("Set Theory", r"\\cup|\\cap|\\in|\\subset|\\emptyset"),
-    ("Trigonometry", r"\\sin|\\cos|\\tan|\\arcsin|\\arccos|\\arctan"),
-    ("Calculus", r"\\int|\\partial|\\lim|\\infty|\\sum|\\prod"),
-    ("Algebra", r"=|\\sqrt|\\pm|\\cdot|\\frac|\\ge|\\le|\\ne"),
+    ("统计学", r"\\Pr|\\prob|\\mathbb\{P\}|\\binom|\\mathcal\{N\}"),
+    ("线性代数", r"\\vec|\\det|\\begin\{(?:matrix|pmatrix)\}"),
+    ("逻辑学", r"\\land|\\lor|\\lnot|\\forall|\\exists|\\Rightarrow"),
+    ("集合论", r"\\cup|\\cap|\\in|\\subset|\\emptyset"),
+    ("三角学", r"\\sin|\\cos|\\tan|\\arcsin|\\arccos|\\arctan"),
+    ("微积分", r"\\int|\\partial|\\lim|\\infty|\\sum|\\prod"),
+    ("代数", r"=|\\sqrt|\\pm|\\cdot|\\frac|\\ge|\\le|\\ne"),
 ]
 
 
 def classify_formula_domain(latex_str: str) -> str:
     """根据 LaTeX 字符串判断公式所属学术领域。
 
-    优先匹配高特异性领域，无匹配时默认归入 "Algebra"。
+    优先匹配高特异性领域，无匹配时默认归入 "代数"。
 
     Args:
         latex_str: 输入的 LaTeX 公式字符串。
 
     Returns:
-        领域字符串，如 "Calculus", "Linear Algebra", "Algebra" 等。
+        领域字符串，如 "微积分", "线性代数", "代数" 等。
     """
     if not latex_str:
         return "Other"
@@ -142,9 +109,36 @@ def classify_formula_domain(latex_str: str) -> str:
     # 如果没有匹配任何模式，尝试更宽松的匹配
     # 检查是否包含数学表达式的基本特征
     if re.search(r"[a-zA-Z]", latex_str) or re.search(r"[+\-*/=<>]", latex_str):
-        return "Algebra"
+        return "代数"
 
     return "Other"
+
+
+# 添加英文标签映射字典，解决Linux系统中文显示问题
+FORMULA_TYPE_ENGLISH = {
+    "微分": "Differential",
+    "积分": "Integral",
+    "求和": "Summation",
+    "矩阵/分段": "Matrix/Piecewise",
+    "二项式": "Binomial",
+    "分数": "Fraction",
+    "根式": "Radical",
+    "极限": "Limit",
+    "不等式": "Inequality",
+    "代数式": "Algebraic",
+    "其他": "Other"
+}
+
+FORMULA_DOMAIN_ENGLISH = {
+    "统计学": "Statistics",
+    "线性代数": "Linear Algebra",
+    "逻辑学": "Logic",
+    "集合论": "Set Theory",
+    "三角学": "Trigonometry",
+    "微积分": "Calculus",
+    "代数": "Algebra",
+    "其他": "Other"
+}
 
 
 def generate_visualizations(df: pd.DataFrame, output_dir: str) -> List[str]:
@@ -171,45 +165,38 @@ def generate_visualizations(df: pd.DataFrame, output_dir: str) -> List[str]:
     # 2. 组合饼图（结构分类 + 领域分类）
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
 
-    # 左图：公式结构分布（中文标签）
+    # 左图：公式结构分布（英文标签）
     type_counts = Counter(df["formula_type"])
     type_counts_clean = {k: v for k, v in type_counts.items() if v > 0}  # 过滤 0 值
-    # 在饼图中明确指定字体属性，这是解决中文显示的最可靠方法
-    font_prop = None
-    if system == "Windows":
-        simhei_path = "C:/Windows/Fonts/simhei.ttf"
-        if os.path.exists(simhei_path):
-            import matplotlib.font_manager as fm
-
-            font_prop = fm.FontProperties(fname=simhei_path)  # 使用黑体
 
     if type_counts_clean:  # 确保有数据再绘制
+        # 使用英文标签替代中文标签
+        english_labels = [FORMULA_TYPE_ENGLISH.get(label, label) for label in type_counts_clean.keys()]
         ax1.pie(
             type_counts_clean.values(),
-            labels=type_counts_clean.keys(),
+            labels=english_labels,
             autopct="%1.1f%%",
-            # 明确指定字体属性
-            textprops={"fontproperties": font_prop} if font_prop else {},
         )
-        # 为标题也设置字体
-        ax1.set_title("公式结构分布", fontproperties=font_prop if font_prop else None)
+        ax1.set_title("Formula Structure Distribution")
     else:
-        ax1.text(0.5, 0.5, "无数据", ha="center", va="center")
-        ax1.set_title("公式结构分布")
+        ax1.text(0.5, 0.5, "No Data", ha="center", va="center")
+        ax1.set_title("Formula Structure Distribution")
 
     # 右图：学术领域分布（英文标签）
     domain_counts = Counter(df["formula_domain"])
     domain_counts_clean = {k: v for k, v in domain_counts.items() if v > 0}  # 过滤 0 值
     if domain_counts_clean:  # 确保有数据再绘制
+        # 使用英文标签替代中文标签
+        english_labels = [FORMULA_DOMAIN_ENGLISH.get(label, label) for label in domain_counts_clean.keys()]
         ax2.pie(
             domain_counts_clean.values(),
-            labels=domain_counts_clean.keys(),
+            labels=english_labels,
             autopct="%1.1f%%",
         )
-        ax2.set_title("学术领域分布", fontproperties=font_prop if font_prop else None)
+        ax2.set_title("Academic Domain Distribution")
     else:
-        ax2.text(0.5, 0.5, "无数据", ha="center", va="center")
-        ax2.set_title("学术领域分布")
+        ax2.text(0.5, 0.5, "No Data", ha="center", va="center")
+        ax2.set_title("Academic Domain Distribution")
 
     plt.tight_layout()
     type_dist_path = os.path.join(output_dir, "formula_type_dist.png")
@@ -314,7 +301,6 @@ def _read_and_fix_html_report(html_path: str) -> str:
 def analyze_jsonl(
     input_path: str,
     output_html: str = None,
-    to_parquet: bool = False,
     use_ai: bool = True,
     ai_key: str = None,
     ai_model: str = None,

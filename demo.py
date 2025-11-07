@@ -7,7 +7,6 @@
 
 import sys
 import os
-
 import pandas as pd
 import gradio as gr
 
@@ -831,8 +830,12 @@ def create_app():
 
                     # 文本结果摘要
                     analysis_result_summary = gr.Textbox(
-                        label="分析结果摘要", lines=5, interactive=False
+                        label="分析结果摘要", lines=5, interactive=False,
+                        placeholder="💡图片生成说明:\n"
+                                    "分析图表会保存在项目目录下的 ./worked_data/output 文件夹中。\n"
+                                    "如果图片未显示，您可以在文件系统中直接访问这些 PNG 文件。"
                     )
+
                     # HTML报告展示组件
                     report_html_display = gr.HTML(label="详细分析报告", show_label=True)
 

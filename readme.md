@@ -1,6 +1,6 @@
 # Formula Dataset Pipeline
 
-一个轻量级、端到端的合成数学公式数据集生成流水线，专为构建公式识别数据集（Mathematical Expression Recognition / Math OCR）任务设计。Parquet 格式转换为JSONL 格式，并生成透明背景 PNG 公式图像。
+一个轻量级、端到端的合成数学公式数据集生成流水线，专为构建公式识别数据集（Mathematical Expression Recognition / Math OCR）任务设计。能将 Parquet 格式转换为 JSONL 格式，并根据标签生成透明背景 PNG 公式图像。
 
 > ✨ **无需安装系统级 LaTeX！仅依赖 `matplotlib` 渲染公式图像，开箱即用。支持最多10K数据**
 > 已在 **Python 3.11** 环境下验证通过。
@@ -12,7 +12,7 @@
 
 ```text
 formula-dataset-pipeline/
-├── demo.py                         # 图形交互界面
+├── demo.py                         # Gradio 图形交互界面
 ├── origin_data/
 │   ├── check.py                    # 1. 检查原始数据列名与内容
 |   └── analyze_pre_sampling.py     # 2. 采样预分析并输出采样规则
@@ -29,19 +29,28 @@ formula-dataset-pipeline/
 ## 快速上手
 
 安装部署：
-1. git clone https://github.com/6big/formula-dataset-pipeline.git
-2. pip install -r requirements.txt
-3. python demo.py ————> 浏览器自动打开界面
+1. 使用miniconda/anaconda 创建虚拟环境：
+
+    `conda create -n formula-dataset-pipeline python=3.11`
+2. 激活虚拟环境后执行
+
+    `git clone https://github.com/6big/formula-dataset-pipeline.git`
+3. 在项目目录下执行 `pip install -r requirements.txt`
+4. `python demo.py` ————> 浏览器自动打开界面
+
 
 ![Demo](.gradio/demo.png)
 
+
 最终生成：
-- `worked_data/images/`：增强后的 PNG 公式图像（透明背景）
-- `worked_data/add_train.jsonl`：与图像严格对应的标注文件，格式如下：
+- `worked_data/output/images/`：增强后的 PNG 公式图像（透明背景）
+- `worked_data/output/add_train.jsonl`：与图像严格对应的标注文件，格式如下：
 
 ```json
 {"image": "images/000001.png", "latex": "x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}"}
 ```
+- `worked_data/output/formula_type_dist.png` : 公式类型分布饼图
+- `worked_data/output/formula_length_dist.png` : 公式长度分布直方图
 
 ## 环境要求
 
