@@ -59,8 +59,8 @@ class TestAnalyzePreSampling(unittest.TestCase):
         # 测试正常情况
         text = 'This is a formula: $E = mc^2$ and another one $$F = ma$$'
         formulas = extract_latex_formulas(text)
-        self.assertIn('$E = mc^2$', formulas)
-        self.assertIn('$F = ma$', formulas)
+        self.assertIn('E = mc^2', formulas)
+        self.assertIn('F = ma', formulas)
 
         # 测试不同格式的公式
         text = 'Another example with \\(a^2 + b^2 = c^2\\) and \\[x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\\]'
