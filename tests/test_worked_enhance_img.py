@@ -258,7 +258,9 @@ class TestEnhanceImagesToNewDir(unittest.TestCase):
         self.assertIsInstance(result, str)
         # 当输入目录不存在时，函数会抛出异常并返回错误信息
         self.assertIn("❌ 增强失败", result)
-        self.assertIn("系统找不到指定的路径", result)
+        # 修改断言，不再检查特定的错误消息文本，而是检查是否包含常见的错误关键词
+        # Windows和Linux系统可能会有不同的错误消息文本
+        self.assertTrue("cannot find" in result or "No such file" in result or "找不到" in result or "The system cannot find" in result)
 
 
 class TestEnhanceImagesWithBackup(unittest.TestCase):

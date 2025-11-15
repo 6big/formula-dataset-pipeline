@@ -207,9 +207,10 @@ def convert_tagged_jsonl_to_latex_jsonl(
 
         # 保存
         # 如果output_dir参数为空，则使用默认的transfer_data/input目录
+        current_script_dir: str = ""  # 初始化变量
         if not output_dir:
             # 获取当前脚本所在目录的父目录，然后构建transfer_data/input路径
-            current_script_dir: str = os.path.dirname(os.path.abspath(__file__))
+            current_script_dir = os.path.dirname(os.path.abspath(__file__))
             output_dir = os.path.join(current_script_dir, "input")
 
         # 确保输出目录存在
@@ -220,12 +221,20 @@ def convert_tagged_jsonl_to_latex_jsonl(
                 f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
         # 构建相对路径返回值
-        relative_output_path: str = os.path.relpath(
-            jsonl_path,
-            os.path.dirname(
+        # 只有当output_dir原本为空且current_script_dir被设置时才使用current_script_dir
+        if current_script_dir:
+            relative_output_path: str = os.path.relpath(
+                jsonl_path,
+                os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                ),
+            )
+        else:
+            # 否则使用output_dir来计算相对路径
+            relative_output_path: str = os.path.relpath(
+                jsonl_path,
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            ),
-        )
+            )
         relative_output_path = "./" + relative_output_path.replace("\\", "/")
 
         return (
@@ -284,10 +293,13 @@ def convert_to_latex_jsonl(
 
         # 保存
         # 如果output_dir参数为空，则使用默认的transfer_data/input目录
+        current_script_dir: str = ""  # 初始化变量
+        output_dir_was_none: bool = False
         if not output_dir:
             # 获取当前脚本所在目录，然后构建transfer_data/input路径
-            current_script_dir: str = os.path.dirname(os.path.abspath(__file__))
+            current_script_dir = os.path.dirname(os.path.abspath(__file__))
             output_dir = os.path.join(current_script_dir, "input")
+            output_dir_was_none = True
 
         # 确保输出目录存在
         Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -297,9 +309,16 @@ def convert_to_latex_jsonl(
                 f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
         # 构建相对路径返回值
-        relative_output_path: str = os.path.relpath(
-            jsonl_path, os.path.dirname(os.path.dirname(current_script_dir))
-        )
+        # 只有当output_dir原本为空且current_script_dir被设置时才使用current_script_dir
+        if output_dir_was_none:
+            relative_output_path: str = os.path.relpath(
+                jsonl_path, os.path.dirname(os.path.dirname(current_script_dir))
+            )
+        else:
+            # 否则使用output_dir来计算相对路径
+            relative_output_path: str = os.path.relpath(
+                jsonl_path, os.path.dirname(os.path.abspath(__file__))
+            )
         relative_output_path = "./" + relative_output_path.replace("\\", "/")
 
         return (
