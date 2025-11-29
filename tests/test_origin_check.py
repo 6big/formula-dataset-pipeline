@@ -39,9 +39,12 @@ class TestCheckColumns(unittest.TestCase):
         mock_df.columns = ["text", "texts"]  # 任意列名
         mock_df.__len__ = lambda self: 5
 
-        # 模拟 iloc 访问
+        # 模拟 iloc 访问和 first_row[col] 访问
         mock_row = unittest.mock.Mock()
-        mock_row.__getitem__ = lambda self, key: "sample data"
+        # 使 mock_row 支持 [] 操作
+        def get_item(key):
+            return "sample data"
+        mock_row.__getitem__.side_effect = get_item
         mock_iloc = unittest.mock.Mock()
         mock_iloc.__getitem__ = lambda self, key: mock_row
         mock_df.iloc = mock_iloc
@@ -63,11 +66,16 @@ class TestCheckColumns(unittest.TestCase):
         mock_df.columns = ["text", "image"]
         mock_df.__len__ = lambda self: 5
 
-        # 模拟 iloc 访问
+        # 模拟 iloc 访问和 first_row[col] 访问
         mock_row = unittest.mock.Mock()
-        mock_row.__getitem__ = lambda self, key: (
-            "E=mc^2" if key == "text" else {"bytes": b"fake_image_data"}
-        )
+        # 使 mock_row 支持 [] 操作
+        def get_item(key):
+            if key == "text":
+                return "E=mc^2"
+            elif key == "image":
+                return {"bytes": b"fake_image_data"}
+            return "sample data"
+        mock_row.__getitem__.side_effect = get_item
         mock_iloc = unittest.mock.Mock()
         mock_iloc.__getitem__ = lambda self, key: mock_row
         mock_df.iloc = mock_iloc
