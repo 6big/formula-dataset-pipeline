@@ -41,60 +41,98 @@ def extract_latex_formulas(text: str) -> List[str]:
     if not text or not isinstance(text, str):
         return []
 
-    # 检查是否是纯LaTeX公式（没有包裹符号）
-    # 如果文本中包含常见的LaTeX命令，我们假设整个文本就是一个公式
-    latex_indicators = [
-        r"\\[a-zA-Z]+",  # LaTeX命令
-        r"\{",  # 花括号
-        r"\}",  # 花括号
-        r"\^",  # 上标
-        r"_",  # 下标
-        r"\\frac",  # 分数
-        r"\\sum",  # 求和
-        r"\\int",  # 积分
-        r"\\infty",  # 无穷
-    ]
-
-    # 检查是否包含LaTeX特征
-    is_latex = any(re.search(indicator, text) for indicator in latex_indicators)
-
-    # 检查是否被常见的公式包裹符号包围
-    # 修正逻辑：使用更精确的正则匹配来检测包裹符号
-    wrapped_patterns = [
-        r"^\$\$.*\$\$$",         # 双美元符号完整包裹整个文本
-        r"^\$.*\$$",             # 单美元符号完整包裹整个文本
-        r"^\\\((.*)\\\)$",       # \( ... \) 完整包裹整个文本
-        r"^\\\[(.*)\\\]$",       # \[ ... \] 完整包裹整个文本
-    ]
-    is_wrapped = False
-    for pattern in wrapped_patterns:
-        try:
-            if re.match(pattern, text.strip()):
-                is_wrapped = True
-                break
-        except re.error:
-            # 如果正则表达式有问题，跳过这个模式
-            continue
-
-    # 如果看起来像LaTeX且没有被包裹，则认为整个文本就是一个公式
-    if is_latex and not is_wrapped:
-        return [text.strip()]
-
-    # 否则使用原来的提取逻辑
-    patterns = [
-        r"\$\$(.*?)\$\$",      # 双美元符号: $$...$$
-        r"(?<!\$)\$(.*?)(?<!\$)\$(?!\$)",  # 单美元符号: $...$ (避免匹配$$...$$)
-        r"\\\((.*?)\\\)",      # 圆括号形式: \(...\)
-        r"\\\[(.*?)\\\]",      # 方括号形式: \[...\]
-    ]
+    # 优先处理包含<formula>标签的情况
     formulas = []
-    for pattern in patterns:
-        try:
-            matches = re.findall(pattern, text, re.DOTALL)
-            formulas.extend([m.strip() for m in matches if m.strip()])
-        except re.error:
-            # 如果正则表达式有问题，跳过这个模式
-            continue
+    
+    # 提取<formula>标签中的内容
+    formula_pattern = r"<formula>(.*?)</formula>"
+    formula_matches = re.findall(formula_pattern, text, re.DOTALL)
+    
+    if formula_matches:
+        for match in formula_matches:
+            # 清理 <loc_XXX> 标记
+            cleaned = re.sub(r"<loc_\d+>", "", match)
+            # 处理转义字符
+            cleaned = cleaned.replace("\\\\", "\\")
+            # 移除可能的前后空白和逗号
+            cleaned = cleaned.strip().rstrip(',').strip()
+            if cleaned:
+                formulas.append(cleaned)
+    
+    # 如果没有找到<formula>标签，尝试处理包含<loc_XXX>标记的内容
+    elif "<loc_" in text and ">" in text:
+        # 匹配两个 <loc_XXX> 标记之后的内容直到下一个标签或行尾
+        loc_pattern = r"<loc_\d+><loc_\d+><loc_\d+><loc_\d+>(.*?)(?:<[^>]*>|$)"
+        loc_matches = re.findall(loc_pattern, text, re.DOTALL)
+        
+        for match in loc_matches:
+            # 清理 <loc_XXX> 标记
+            cleaned = re.sub(r"<loc_\d+>", "", match)
+            # 处理转义字符
+            cleaned = cleaned.replace("\\\\", "\\")
+            # 移除可能的前后空白和逗号
+            cleaned = cleaned.strip().rstrip(',').strip()
+            if cleaned:
+                formulas.append(cleaned)
+    
+    # 如果以上方法都没有提取到公式，则使用原有的提取逻辑
+    if not formulas:
+        # 检查是否是纯LaTeX公式（没有包裹符号）
+        # 如果文本中包含常见的LaTeX命令，我们假设整个文本就是一个公式
+        latex_indicators = [
+            r"\\[a-zA-Z]+",  # LaTeX命令
+            r"\{",  # 花括号
+            r"\}",  # 花括号
+            r"\^",  # 上标
+            r"_",  # 下标
+            r"\\frac",  # 分数
+            r"\\sum",  # 求和
+            r"\\int",  # 积分
+            r"\\infty",  # 无穷
+        ]
+
+        # 检查是否包含LaTeX特征
+        is_latex = any(re.search(indicator, text) for indicator in latex_indicators)
+
+        # 检查是否被常见的公式包裹符号包围
+        # 修正逻辑：使用更精确的正则匹配来检测包裹符号
+        wrapped_patterns = [
+            r"^\$\$.*\$\$$",         # 双美元符号完整包裹整个文本
+            r"^\$.*\$$",             # 单美元符号完整包裹整个文本
+            r"^\\\((.*)\\\)$",       # \( ... \) 完整包裹整个文本
+            r"^\\\[(.*)\\\]$",       # \[ ... \] 完整包裹整个文本
+        ]
+        is_wrapped = False
+        for pattern in wrapped_patterns:
+            try:
+                if re.match(pattern, text.strip()):
+                    is_wrapped = True
+                    break
+            except re.error:
+                # 如果正则表达式有问题，跳过这个模式
+                continue
+
+        # 如果看起来像LaTeX且没有被包裹，则认为整个文本就是一个公式
+        if is_latex and not is_wrapped:
+            # 清理可能的冗余内容
+            cleaned_text = re.sub(r"<loc_\d+>", "", text)
+            cleaned_text = cleaned_text.replace("\\\\", "\\")
+            return [cleaned_text.strip()]
+
+        # 否则使用原来的提取逻辑
+        patterns = [
+            r"\$\$(.*?)\$\$",      # 双美元符号: $$...$$
+            r"(?<!\$)\$(.*?)(?<!\$)\$(?!\$)",  # 单美元符号: $...$ (避免匹配$$...$$)
+            r"\\\((.*?)\\\)",      # 圆括号形式: \(...\)
+            r"\\\[(.*?)\\\]",      # 方括号形式: \[...\]
+        ]
+        for pattern in patterns:
+            try:
+                matches = re.findall(pattern, text, re.DOTALL)
+                formulas.extend([m.strip() for m in matches if m.strip()])
+            except re.error:
+                # 如果正则表达式有问题，跳过这个模式
+                continue
 
     # 去重保持顺序
     seen = set()
@@ -148,11 +186,14 @@ def analyze_formula_distribution(
     doc_structures: List[Set[str]] = []
     doc_domains: List[Set[str]] = []
 
-    for idx, row_text in df[text_column].items():
-        if pd.isna(row_text):
+    # 使用 iterrows() 确保索引连续性，避免因跳过NaN值导致的索引错位
+    for idx, row in df.iterrows():
+        # 检查当前行的 text_column 是否为有效值
+        if text_column not in row or pd.isna(row[text_column]):
             empty_row_count += 1
             continue
-        text_str = str(row_text)
+            
+        text_str = str(row[text_column])
         formulas = extract_latex_formulas(text_str)
         if not formulas:
             empty_row_count += 1
@@ -297,11 +338,13 @@ def tag_and_save_intermediate_data(
     # 处理每一行数据并打标签
     tagged_count = 0
     with open(out_path, "w", encoding="utf-8") as f:
-        for idx, row_text in df[text_column].items():
-            if pd.isna(row_text):
+        # 使用 iterrows() 确保索引连续性，避免因跳过NaN值导致的索引错位
+        for idx, row in df.iterrows():
+            # 检查当前行的 text_column 是否为有效值
+            if text_column not in row or pd.isna(row[text_column]):
                 continue
 
-            text_str = str(row_text)
+            text_str = str(row[text_column])
             formulas = extract_latex_formulas(text_str)
 
             if not formulas:
@@ -312,7 +355,7 @@ def tag_and_save_intermediate_data(
                 structure_tag = classify_formula_type(formula)
                 domain_tag = classify_formula_domain(formula)
 
-                # 保存带标签的数据
+                # 保存带标签的数据，使用真实的行索引生成ID
                 tagged_item = {
                     "id": f"formula_{idx:06d}",
                     "latex": formula,

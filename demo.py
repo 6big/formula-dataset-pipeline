@@ -38,7 +38,7 @@ def create_app():
         gr.Markdown(
             """
         <h2 style="margin: 0 0 15px 0; color: #6864f4; font-size: 28px; font-weight: bold;text-align: center;margin-bottom: 40px;">
-        🧪 数学公式数据集处理流水线
+        📚 数学公式数据集处理流水线
         </h2>
         """
         )
@@ -46,7 +46,7 @@ def create_app():
         with gr.Tab("步骤 1：检查原始数据"):
             with gr.Row():
                 with gr.Column(scale=1):
-                    file_input = gr.File(label="上传原始数据", file_types=[".parquet"])
+                    step1_file_input = gr.File(label="上传原始数据", file_types=[".parquet"])
                     check_btn = gr.Button("🔍 检查数据")
 
                 with gr.Column(scale=2):
@@ -56,12 +56,12 @@ def create_app():
                         interactive=False,
                         placeholder="使用提示:\n"
                         "1. 上传原始数据集文件(.parquet格式)。\n"
-                        "2. 点击[检查数据]按钮后可以查看检查结果。\n"
+                        "2. 点击[检查数据]按钮后可以查看数据集的行数和列名。\n"
                         "3. 如果不需要采样预分析,可以跳过步骤2。\n",
                     )
 
             # 添加事件绑定
-            check_btn.click(fn=check_columns, inputs=file_input, outputs=check_output)
+            check_btn.click(fn=check_columns, inputs=step1_file_input, outputs=check_output)
 
         with gr.Tab("步骤 2：采样预分析"):
             with gr.Row():
@@ -79,15 +79,19 @@ def create_app():
                         value="./origin_data/output/sampling_rules.json",
                         placeholder="请填写规则文件输出路径",
                     )
-
                     with gr.Group():
                         gr.Markdown("#### 分析参数")
-                        rare_count_threshold = gr.Number(
+                        with gr.Row():
+                            rare_count_threshold = gr.Number(
                             label="稀有类别最小样本数阈值",
                             value=10,
                             minimum=0,
                             precision=0,
+                            )
+                            target_min_per_class = gr.Number(
+                            label="每类目标最小样本数", value=30, minimum=0, precision=0
                         )
+                    with gr.Group():
                         rare_ratio_threshold = gr.Slider(
                             label="稀有类别最小占比阈值",
                             value=0.05,
@@ -95,9 +99,7 @@ def create_app():
                             maximum=1,
                             step=0.01,
                         )
-                        target_min_per_class = gr.Number(
-                            label="每类目标最小样本数", value=30, minimum=0, precision=0
-                        )
+
 
                     analyze_btn = gr.Button("🔬 执行预分析")
 
@@ -107,9 +109,9 @@ def create_app():
                         lines=33,
                         interactive=False,
                         placeholder="使用提示:\n"
-                        "1. 上传原始数据集文件(.parquet格式)。\n"
-                        "2. 设置相关参数并点击执行预分析按钮。\n"
-                        "3. 查看分析结果和采样建议。",
+                        "1. 上传原始数据集文件(.parquet格式)。第3,4步默认继承此步上传的parquet\n"
+                        "2. 设置相关参数，[采样文本列名] 是latex所在的列名,请在第1步结果查看。\n"
+                        "3. 点击执行预分析按钮后，可以查看分析结果和采样建议。",
                     )
                     sampling_rules_output = gr.JSON(
                         label="采样规则(JSON格式)", visible=False
@@ -195,22 +197,24 @@ def create_app():
                 outputs=[analyze_output, sampling_rules_output],
             )
 
-        with gr.Tab("步骤 3：转换格式"):
+        with gr.Tab("步骤 3：数据采样"):
             with gr.Row():
                 with gr.Column(scale=1):
-                    step2_file_input = gr.File(
-                        label="上传原始数据集", file_types=[".parquet"]
+                    # 使用步骤2中定义的step2_file_input组件
+                    gr.File(
+                        label="上传原始数据集", file_types=[".parquet"],
+                        value=step2_file_input.value  # 继承步骤2的输入文件
                     )
 
                     with gr.Group():
-                        gr.Markdown("#### 转换模式")
+                        gr.Markdown("#### 采样源数据")
                         conversion_mode = gr.Radio(
                             choices=[
-                                ("直接从Parquet转换", "parquet"),
-                                ("从带标签JSONL转换(需执行步骤2)", "tagged"),
+                                ("Parquet数据集", "parquet"),
+                                ("带标签JSONL(需执行步骤2)", "tagged"),
                             ],
                             value="tagged",
-                            label="选择转换模式",
+                            label="选择采样源数据类型",
                         )
 
                     # Parquet转换参数
@@ -248,27 +252,27 @@ def create_app():
                                 label="采样策略",
                             )
                             tagged_target_samples = gr.Number(
-                                label="目标样本数", value=300, precision=0
+                                label="目标样本数", value=300, precision=0,minimum=0
                             )
 
-                        with gr.Group():
-                            gr.Markdown("##### 过滤规则")
+                        gr.Markdown("##### 过滤规则")
+                        with gr.Row():
                             tagged_exclude_other = gr.Checkbox(
                                 label="排除 'Other' 类别", value=True
                             )
                             tagged_exclude_rare = gr.Checkbox(
                                 label="排除稀有类别", value=True
                             )
-
+                        with gr.Group():
+                            tagged_exclude_custom = gr.Textbox(
+                                label="自定义排除类别（用逗号分隔）",
+                                placeholder="例如: 微分,根式,矩阵/分段",
+                            )
                             tagged_sampling_rules_path = gr.Textbox(
                                 label="采样规则文件路径",
                                 value="./origin_data/output/sampling_rules.json",
                             )
 
-                            tagged_exclude_custom = gr.Textbox(
-                                label="自定义排除类别（用逗号分隔）",
-                                placeholder="例如: 微分,根式,矩阵/分段",
-                            )
 
                     convert_btn = gr.Button("🔄 转换为JSONL")
 
@@ -278,9 +282,9 @@ def create_app():
                         lines=35,
                         interactive=False,
                         placeholder="使用提示:\n"
-                        "1. 选择转换模式(直接从Parquet转换或从带标签JSONL转换)。\n"
-                        "2. 根据所选模式设置相应的参数。\n"
-                        "3. 点击转换按钮开始处理。",
+                        "1. 选择采样源数据类型 [Parquet数据集] 或 [带标签JSONL]。\n"
+                        "2. 如果跳过第2步,请在这一步上传Parquet 且 选择 [Parquet数据集]。\n"
+                        "3. 根据所选模式设置相应的参数，点击转换按钮开始处理。",
                     )
 
             # 添加模式切换逻辑
@@ -381,6 +385,22 @@ def create_app():
                         value="./transfer_data/input/formulas.jsonl",
                         placeholder="请输入JSONL文件路径",
                     )
+
+                    with gr.Group():
+                        gr.Markdown("#### 处理模式")
+                        mode = gr.Radio(
+                            choices=[
+                                ("LaTeX渲染模式", "latex"),
+                                ("Parquet提取模式", "parquet"),
+                            ],
+                            value="latex",
+                        )
+
+                        parquet_source = gr.Markdown(
+                            value="使用步骤2上传的Parquet文件",
+                            visible=False,
+                        )
+
                     user_prompt = gr.Textbox(
                         label="用户提示词",
                         value="请根据以下 LaTeX 公式生成相应的数学表达式图片。",
@@ -388,12 +408,7 @@ def create_app():
                     )
 
                     with gr.Group():
-                        gr.Markdown("#### 渲染参数")
-                        image_prefix = gr.Textbox(
-                            label="图像文件前缀",
-                            value="sample",
-                            placeholder="请输入图像文件前缀",
-                        )
+                        gr.Markdown("#### LaTeX 渲染参数")
 
                         with gr.Row():
                             dpi = gr.Number(
@@ -433,21 +448,38 @@ def create_app():
                         lines=42,
                         interactive=False,
                         placeholder="使用提示:\n"
-                        "1. 设置输出目录和输入JSONL文件路径。\n"
-                        "2. 配置渲染参数(DPI、字体大小、图像尺寸等)。\n"
-                        "3. 选择失败处理策略:\n"
-                        "   - 跳过：遇到渲染失败的公式直接跳过，不保存图片。\n"
+                        "1. 设置输出目录和输入JSONL文件路径,默认即可。\n"
+                        "2. 选择处理模式( [LaTeX渲染] 或 [Parquet提取] )。\n"
+                        "3. Parquet模式将使用步骤2上传的Parquet文件。\n"
+                        "4. [LaTeX渲染] 请配置渲染参数(DPI、字体大小、图像尺寸等)。\n"
+                        "5. 一般而言，只有[LaTeX渲染]会有部分失败，失败处理策略默认即可:\n"
+                        "   * 跳过：遇到渲染失败的公式直接跳过，不保存图片。\n"
                         "   - 占位符：为失败公式生成占位符图像，确保数据完整性。\n"
                         "     默认使用透明图像(224x224)并添加红色❌水印。\n"
-                        "4. 点击生成按钮开始创建公式图像。",
+                        "   + 可选项：记录失败样本ID供后续处理\n"
+                        "6. 点击生成按钮开始创建公式图像。",
                     )
+
+            # 添加模式切换逻辑
+            def toggle_mode(mode_value):
+                if mode_value == "parquet":
+                    return gr.update(visible=True)
+                else:
+                    return gr.update(visible=False)
+
+            mode.change(
+                fn=toggle_mode,
+                inputs=mode,
+                outputs=parquet_source,
+            )
 
             # 添加事件绑定
             def wrap_generate_formula_images(
                 output_dir,
                 input_jsonl,
+                mode,
+                step2_file_input,  # 添加step2_file_input参数
                 user_prompt,
-                image_prefix,
                 dpi,
                 figsize_width,
                 figsize_height,
@@ -459,11 +491,19 @@ def create_app():
                     return "请指定输出目录"
 
                 try:
+                    # 根据模式确定参数
+                    parquet_path = None
+                    if mode == "parquet":
+                        if step2_file_input is None:
+                            return "在Parquet模式下,请先在步骤2上传Parquet文件"
+                        parquet_path = step2_file_input.name
+
                     result = generate_formula_images(
                         output_dir=output_dir,
                         input_jsonl=input_jsonl,
+                        mode=mode,
+                        parquet_path=parquet_path,
                         user_prompt=user_prompt,
-                        image_prefix=image_prefix,
                         dpi=dpi,
                         figsize=(figsize_width, figsize_height),
                         fontsize=fontsize,
@@ -482,8 +522,9 @@ def create_app():
                 inputs=[
                     step4_output_dir,
                     input_jsonl,
+                    mode,
+                    step2_file_input,  # 添加step2_file_input输入
                     user_prompt,
-                    image_prefix,
                     dpi,
                     figsize_width,
                     figsize_height,
@@ -990,10 +1031,10 @@ def create_app():
                     ai_model,
                 ],
                 outputs=[
-                    latex_length_chart,  # 输出1：长度分布图
-                    formula_type_chart,  # 输出2：类型分布图
-                    report_html_display,  # 输出3：完整 HTML 报告
-                    analysis_result_summary,  # 输出4：简要文本结果
+                    latex_length_chart,
+                    formula_type_chart,
+                    report_html_display,
+                    analysis_result_summary,
                 ],
             )
 
