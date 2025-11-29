@@ -38,6 +38,14 @@ class TestCheckColumns(unittest.TestCase):
         mock_df.empty = False
         mock_df.columns = ["text", "texts"]  # 任意列名
         mock_df.__len__ = lambda self: 5
+
+        # 模拟 iloc 访问
+        mock_row = unittest.mock.Mock()
+        mock_row.__getitem__ = lambda self, key: "sample data"
+        mock_iloc = unittest.mock.Mock()
+        mock_iloc.__getitem__ = lambda self, key: mock_row
+        mock_df.iloc = mock_iloc
+
         mock_read_parquet.return_value = mock_df
 
         result = check_columns("./origin_data/test_file.parquet")
@@ -54,14 +62,15 @@ class TestCheckColumns(unittest.TestCase):
         mock_df.empty = False
         mock_df.columns = ["text", "image"]
         mock_df.__len__ = lambda self: 5
-        mock_df.iloc = unittest.mock.Mock()
 
-        # 模拟第一行数据
+        # 模拟 iloc 访问
         mock_row = unittest.mock.Mock()
         mock_row.__getitem__ = lambda self, key: (
             "E=mc^2" if key == "text" else {"bytes": b"fake_image_data"}
         )
-        mock_df.iloc.__getitem__ = lambda self, key: mock_row
+        mock_iloc = unittest.mock.Mock()
+        mock_iloc.__getitem__ = lambda self, key: mock_row
+        mock_df.iloc = mock_iloc
 
         mock_read_parquet.return_value = mock_df
 
