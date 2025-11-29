@@ -31,17 +31,30 @@ class TestCheckColumns(unittest.TestCase):
         self.assertIn("⚠️ 文件为空，无数据行。", result)
 
     @patch("pandas.read_parquet")
-    def test_missing_required_columns(self, mock_read_parquet):
-        """测试缺少必需列的情况"""
-        # 模拟缺少列的DataFrame
+    def test_any_columns_ok(self, mock_read_parquet):
+        """测试任何列名都可以（不再限制特定列名）"""
+        # 模拟带有任意列的DataFrame
         mock_df = unittest.mock.Mock()
         mock_df.empty = False
-        mock_df.columns = ["text"]  # 缺少'image'列
+        mock_df.columns = ["text", "texts"]  # 任意列名
+        mock_df.__len__ = lambda self: 5
+
+        # 模拟 iloc 访问和 first_row[col] 访问
+        class MockRow:
+            def __getitem__(self, key):
+                return "sample data"
+
+        mock_iloc = unittest.mock.Mock()
+        mock_iloc.__getitem__ = unittest.mock.Mock(return_value=MockRow())
+        mock_df.iloc = mock_iloc
+
         mock_read_parquet.return_value = mock_df
 
         result = check_columns("./origin_data/test_file.parquet")
-        self.assertIn("❌ 缺少必要列", result)
-        self.assertIn("image", result)
+        # 检查正常的输出
+        self.assertIn("✅ Parquet 文件读取成功！", result)
+        self.assertIn("📊 总行数: 5", result)
+        self.assertIn("📋 列名列表: ['text', 'texts']", result)
 
     @patch("pandas.read_parquet")
     def test_valid_parquet_with_dict_image(self, mock_read_parquet):
@@ -51,21 +64,27 @@ class TestCheckColumns(unittest.TestCase):
         mock_df.empty = False
         mock_df.columns = ["text", "image"]
         mock_df.__len__ = lambda self: 5
-        mock_df.iloc = unittest.mock.Mock()
 
-        # 模拟第一行数据
-        mock_row = unittest.mock.Mock()
-        mock_row.__getitem__ = lambda self, key: (
-            "E=mc^2" if key == "text" else {"bytes": b"fake_image_data"}
-        )
-        mock_df.iloc.__getitem__ = lambda self, key: mock_row
+        # 模拟 iloc 访问和 first_row[col] 访问
+        class MockRow:
+            def __getitem__(self, key):
+                if key == "text":
+                    return "E=mc^2"
+                elif key == "image":
+                    return {"bytes": b"fake_image_data"}
+                return "sample data"
+
+        mock_iloc = unittest.mock.Mock()
+        mock_iloc.__getitem__ = unittest.mock.Mock(return_value=MockRow())
+        mock_df.iloc = mock_iloc
 
         mock_read_parquet.return_value = mock_df
 
         result = check_columns("./origin_data/test_file.parquet")
-        self.assertIn("✅ 列名检查通过！", result)
+        # 检查输出格式
+        self.assertIn("✅ Parquet 文件读取成功！", result)
         self.assertIn("📊 总行数: 5", result)
-        self.assertIn("📋 所有列: ['text', 'image']", result)
+        self.assertIn("📋 列名列表: ['text', 'image']", result)
 
     @patch("pandas.read_parquet")
     def test_exception_handling(self, mock_read_parquet):
