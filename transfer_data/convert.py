@@ -83,6 +83,16 @@ def convert_tagged_jsonl_to_latex_jsonl(
             structure: str = item["tags"]["structure"]
             domain: str = item["tags"]["domain"]
 
+            # 保护高价值稀有组合：微积分、线性代数、统计学领域的所有样本
+            if domain in ["微积分", "线性代数", "统计学"]:
+                filtered_items.append(item)
+                continue
+
+            # 保护高价值结构：积分、微分、极限、矩阵/分段的所有样本
+            if structure in ["积分", "微分", "极限", "矩阵/分段"]:
+                filtered_items.append(item)
+                continue
+
             # 检查是否需要排除 "Other" 类别
             if exclude_other and (structure == "其他" or domain == "Other"):
                 continue
@@ -120,8 +130,10 @@ def convert_tagged_jsonl_to_latex_jsonl(
             items_by_category: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
 
             for item in filtered_items:
-                # 使用结构类型作为主要分类标准
-                category: str = item["tags"]["structure"]
+                # 使用 (structure, domain) 组合作为主要分类标准
+                structure: str = item["tags"]["structure"]
+                domain: str = item["tags"]["domain"]
+                category: str = f"{structure}_{domain}"  # ← 关键改动
                 category_counts[category] += 1
                 items_by_category[category].append(item)
 

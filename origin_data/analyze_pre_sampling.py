@@ -220,11 +220,13 @@ def analyze_formula_distribution(
         raise ValueError("No formulas found in the specified column.")
 
     # 3. 分类统计
+    cross_counter = Counter()  # ← 新增
     structure_counter = Counter()
     domain_counter = Counter()
     for _, s, d in all_formulas:
         structure_counter[s] += 1
         domain_counter[d] += 1
+        cross_counter[f"{s}_{d}"] += 1  # ← 新增
 
     # 4. 计算文档覆盖率
     def coverage(cats: List[Set[str]], cat: str) -> float:
@@ -265,6 +267,7 @@ def analyze_formula_distribution(
         "distributions": {
             "structure": dict(structure_counter),
             "domain": dict(domain_counter),
+            "structure_domain_combinations": dict(cross_counter)  # ← 新增
         },
         "coverage": {
             "document_structure": {k: round(v, 4) for k, v in doc_cov_s.items()},
